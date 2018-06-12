@@ -132,7 +132,7 @@ public class AccountServiceTest extends BaseJerseyTest {
                         createdRecipientAccount.getId(),
                         transferValue));
         check_400_BAD_REQUEST(failedTransfer);
-        assertTrue("Insufficient sender account balance"
+        assertTrue("Transfer failed, insufficient sender account balance"
                 .equals(failedTransfer.readEntity(ServiceException.class).getError()));
     }
 

@@ -1,7 +1,8 @@
 package com.test.simplebank;
 
-import com.test.simplebank.datasource.IAccountDataSource;
-import com.test.simplebank.datasource.InMemoryAccountDataSource;
+import com.test.simplebank.dao.AccountDAO;
+import com.test.simplebank.dao.IAccountDAO;
+import com.test.simplebank.datasource.H2Database;
 import com.test.simplebank.model.ServiceException;
 import org.codehaus.jackson.jaxrs.JacksonJaxbJsonProvider;
 import org.eclipse.jetty.server.Server;
@@ -14,6 +15,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 
 import javax.servlet.Servlet;
+import javax.sql.DataSource;
 import javax.ws.rs.NotFoundException;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
@@ -49,7 +51,8 @@ public class Application {
     public static class AppBinder extends AbstractBinder {
         @Override
         protected void configure() {
-            bind(new InMemoryAccountDataSource()).to(IAccountDataSource.class);
+            bind(H2Database.createDataSource()).to(DataSource.class);
+            bind(AccountDAO.class).to(IAccountDAO.class);
             bind(AccountServiceImpl.class).to(IAccountService.class);
         }
     }

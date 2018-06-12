@@ -1,6 +1,6 @@
 package com.test.simplebank;
 
-import com.test.simplebank.datasource.IAccountDataSource;
+import com.test.simplebank.dao.IAccountDAO;
 import com.test.simplebank.model.Account;
 import com.test.simplebank.model.MoneyTransfer;
 
@@ -17,17 +17,16 @@ import java.sql.SQLException;
 @Singleton
 @Path("/")
 public class AccountServiceImpl implements IAccountService {
-
-    private final IAccountDataSource db;
+    private final IAccountDAO accountDAO;
 
     @Inject
-    public AccountServiceImpl(IAccountDataSource db) {
-        this.db = db;
+    public AccountServiceImpl(IAccountDAO accountDAO) {
+        this.accountDAO = accountDAO;
     }
 
     public Response create(final Account account) {
         try {
-            return Response.created(URI.create("account/" + db.createAccount(account)))
+            return Response.created(URI.create("account/" + accountDAO.createAccount(account)))
                     .build();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -36,7 +35,7 @@ public class AccountServiceImpl implements IAccountService {
 
     public Account getAccount(final Long id) {
         try {
-            return db.getAccount(id)
+            return accountDAO.getAccount(id)
                     .orElseThrow(() -> new NotFoundException("Account with id=" + id + " not found"));
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -47,7 +46,7 @@ public class AccountServiceImpl implements IAccountService {
         checkValueIsPositive(value);
         final Account account = getAccount(id);
         try {
-            db.increaseBalance(account.getId(), value);
+            accountDAO.raiseBalance(account.getId(), value, false);
             return getAccount(id);
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -58,7 +57,7 @@ public class AccountServiceImpl implements IAccountService {
         checkValueIsPositive(value);
         final Account account = getAccount(id);
         try {
-            if (db.decreaseBalance(account.getId(), value)) {
+            if (accountDAO.raiseBalance(account.getId(), value.negate(), true)) {
                 return getAccount(id);
             } else {
                 throw new ProcessingException("Insufficient account balance");
@@ -73,12 +72,10 @@ public class AccountServiceImpl implements IAccountService {
         final Account senderAccount = getAccount(moneyTransfer.getSenderId());
         final Account recipientAccount = getAccount(moneyTransfer.getRecipientId());
         try {
-            if (db.decreaseBalance(senderAccount.getId(), moneyTransfer.getValue())) {
-                db.increaseBalance(recipientAccount.getId(), moneyTransfer.getValue());
-                return getAccount(senderAccount.getId());
-            } else {
-                throw new ProcessingException("Insufficient sender account balance");
+            if (!accountDAO.transfer(senderAccount.getId(), recipientAccount.getId(), moneyTransfer.getValue())) {
+                throw new ProcessingException("Transfer failed, insufficient sender account balance");
             }
+            return getAccount(moneyTransfer.getSenderId());
         } catch (SQLException e) {
             throw new RuntimeException(e);
         }
